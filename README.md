@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Club Boost — Platform Prototype
 
-## Getting Started
+A working demo of Workstream 1 (Platform Foundation & Club Admin) from the Club Boost
+discovery plan: club sign-up, manual admin approval, and each club's own branded,
+editable landing page. Built to show Neil something concrete in a sales meeting —
+not a production system.
 
-First, run the development server:
+Styled to match [clubboost.co.uk](https://clubboost.co.uk) (dark theme, lime accent,
+Sora / Bricolage Grotesque type).
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the URL it prints (defaults to `http://localhost:3000` — pass `-- -p 3010` etc. if
+that port's taken locally).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Data is stored in `data/db.json` (created on first run, seeded with a demo admin and an
+active Chester FC club). Delete that file and restart to reset the demo to a clean state.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## The flow
 
-## Learn More
+1. **Register a club** — homepage → "Register your club". Goes into a pending queue.
+2. **Approve as admin** — `/admin/login` → approve the pending club → a setup link is
+   shown on that club's admin page (in production this would be emailed; here it's
+   copy-paste since there's no mail sending in the prototype).
+3. **Club activates & edits** — open the setup link → set a password → lands straight
+   in the club dashboard → edit logo, accent colour, button style, copy, and sponsor
+   offers, with a live preview alongside the form.
+4. **Live page** — saved changes appear immediately at `/clubs/<slug>`. Sponsor "Claim
+   this offer" links route through `/api/go/<slug>/<sponsorId>` so clicks are tracked,
+   demonstrating the "digital audit trail" from the meeting. The fan signup form on
+   each club page logs interest the same way.
+5. **Admin can also edit any club's page** directly from `/admin/clubs/<id>` — same
+   editor, so both admin and club can customise a landing page as discussed.
 
-To learn more about Next.js, take a look at the following resources:
+## Demo credentials
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Admin:** `cto@visionsdesign.co.uk` / `clubboost2026`
+- **Chester FC (seeded, active):** `secretary@chesterfc-demo.co.uk` / `chesterfc2026`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## What this deliberately does / doesn't do
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Matches what was agreed for the Phase 1 prototype: manual, vetted club onboarding
+(no self-serve), no real subdomains yet (`/clubs/<slug>` instead of
+`<slug>.clubboost.co.uk`), no real email delivery, no payment/bank verification, no
+Stripe. Logos are stored as data URLs for simplicity. None of this is meant to be
+production-ready — it's here to make the logic and structure visible before the real
+build starts, per the plan in `Club_Boost_Portal_Questions_and_Plan.pdf`.
