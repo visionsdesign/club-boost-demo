@@ -11,7 +11,7 @@ export default async function AdminDashboard() {
     redirect("/admin/login");
   }
 
-  const db = readDb();
+  const db = await readDb();
   const admin = db.admins.find((a) => a.id === session.id);
   const pending = db.clubs.filter((c) => c.status === "pending");
   const live = db.clubs.filter((c) => c.status === "active" || c.status === "awaiting_setup");

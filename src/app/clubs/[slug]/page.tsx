@@ -10,14 +10,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubBySlug(db, slug);
   return { title: club ? `${club.clubName} × Club Boost` : "Club not found" };
 }
 
 export default async function PublicClubPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubBySlug(db, slug);
 
   if (!club || club.status !== "active") {

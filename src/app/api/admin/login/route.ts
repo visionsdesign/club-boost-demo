@@ -5,7 +5,7 @@ import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
-  const db = readDb();
+  const db = await readDb();
   const admin = db.admins.find((a) => a.email.toLowerCase() === String(email ?? "").toLowerCase());
 
   if (!admin || !bcrypt.compareSync(String(password ?? ""), admin.passwordHash)) {

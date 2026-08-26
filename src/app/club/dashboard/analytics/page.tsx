@@ -13,7 +13,7 @@ export default async function ClubAnalyticsPage() {
     redirect("/club/login");
   }
 
-  const db = readDb();
+  const db = await readDb();
   const club = findClubById(db, session.id);
   if (!club) {
     redirect("/club/login");

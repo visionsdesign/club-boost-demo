@@ -9,14 +9,14 @@ export async function PUT(req: NextRequest) {
   }
 
   const payload = (await req.json()) as BrandingUpdatePayload;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubById(db, session.id);
   if (!club) {
     return NextResponse.json({ error: "Club not found." }, { status: 404 });
   }
 
   applyBrandingUpdate(club, payload);
-  writeDb(db);
+  await writeDb(db);
 
   return NextResponse.json({ ok: true, slug: club.slug });
 }

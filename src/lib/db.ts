@@ -1,11 +1,7 @@
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import type { DB, Club, Branding, Sponsor, ClickEvent } from "./types";
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "db.json");
+import { neon } from "@neondatabase/serverless";
+import type { DB, Club, Admin, Branding, Sponsor, ClickEvent } from "./types";
 
 export const DEMO_ADMIN_EMAIL = "cto@visionsdesign.co.uk";
 export const DEMO_ADMIN_PASSWORD = "clubboost2026";
@@ -28,7 +24,7 @@ function seededClickEvents(counts: Record<string, number>, days = 14): ClickEven
   return events.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-function seedData(): DB {
+function seedData(): { admins: Admin[]; clubs: Club[] } {
   const now = new Date().toISOString();
   return {
     admins: [
@@ -105,40 +101,195 @@ function seedData(): DB {
   };
 }
 
-function ensureDb(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(seedData(), null, 2));
-  }
+function normalizeClub(club: Club): Club {
+  if (!Array.isArray(club.clickEvents)) club.clickEvents = [];
+  if (!Array.isArray(club.fanSignups)) club.fanSignups = [];
+  if (!Array.isArray(club.sponsors)) club.sponsors = [];
+  if (!club.branding.buttonTextColor) club.branding.buttonTextColor = "#05130a";
+  return club;
 }
 
-function normalize(db: DB): DB {
+// --- Postgres connection -------------------------------------------------
+
+function connectionString(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is not set. Add a Postgres connection string to your environment " +
+        "(a Neon database provisioned via Netlify DB, or your own Postgres instance) — see README.md."
+    );
+  }
+  return url;
+}
+
+let sqlClient: ReturnType<typeof neon> | null = null;
+function sql() {
+  if (!sqlClient) sqlClient = neon(connectionString());
+  return sqlClient;
+}
+
+let initPromise: Promise<void> | null = null;
+
+async function ensureInitialized(): Promise<void> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      const db = sql();
+      await db`
+        CREATE TABLE IF NOT EXISTS admins (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          password_hash TEXT NOT NULL
+        )
+      `;
+      await db`
+        CREATE TABLE IF NOT EXISTS clubs (
+          id TEXT PRIMARY KEY,
+          slug TEXT UNIQUE NOT NULL,
+          status TEXT NOT NULL,
+          contact_email TEXT NOT NULL,
+          setup_token TEXT UNIQUE,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await db`CREATE INDEX IF NOT EXISTS clubs_status_idx ON clubs (status)`;
+      await db`CREATE INDEX IF NOT EXISTS clubs_contact_email_idx ON clubs (lower(contact_email))`;
+
+      const [{ count }] = (await db`SELECT count(*)::int AS count FROM admins`) as {
+        count: number;
+      }[];
+
+      if (count === 0) {
+        const seed = seedData();
+        for (const admin of seed.admins) {
+          await db`
+            INSERT INTO admins (id, email, name, password_hash)
+            VALUES (${admin.id}, ${admin.email}, ${admin.name}, ${admin.passwordHash})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+        for (const club of seed.clubs) {
+          await db`
+            INSERT INTO clubs (id, slug, status, contact_email, setup_token, data)
+            VALUES (${club.id}, ${club.slug}, ${club.status}, ${club.contactEmail}, ${club.setupToken ?? null}, ${JSON.stringify(club)})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+      }
+    })();
+  }
+  return initPromise;
+}
+
+// --- Public data-access API (same shape as before, now async) -----------
+
+export async function readDb(): Promise<DB> {
+  await ensureInitialized();
+  const db = sql();
+  const adminRows = (await db`SELECT id, email, name, password_hash AS "passwordHash" FROM admins`) as Admin[];
+  const clubRows = (await db`SELECT data FROM clubs ORDER BY (data->>'createdAt') ASC`) as {
+    data: Club;
+  }[];
+  return {
+    admins: adminRows,
+    clubs: clubRows.map((r) => normalizeClub(r.data)),
+  };
+}
+
+export async function writeDb(db: DB): Promise<void> {
+  await ensureInitialized();
+  const client = sql();
+  for (const admin of db.admins) {
+    await client`
+      INSERT INTO admins (id, email, name, password_hash)
+      VALUES (${admin.id}, ${admin.email}, ${admin.name}, ${admin.passwordHash})
+      ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, password_hash = excluded.password_hash
+    `;
+  }
   for (const club of db.clubs) {
-    if (!Array.isArray(club.clickEvents)) club.clickEvents = [];
-    if (!Array.isArray(club.fanSignups)) club.fanSignups = [];
-    if (!Array.isArray(club.sponsors)) club.sponsors = [];
-    if (!club.branding.buttonTextColor) club.branding.buttonTextColor = "#05130a";
+    await client`
+      INSERT INTO clubs (id, slug, status, contact_email, setup_token, data, updated_at)
+      VALUES (${club.id}, ${club.slug}, ${club.status}, ${club.contactEmail}, ${club.setupToken ?? null}, ${JSON.stringify(club)}, now())
+      ON CONFLICT (id) DO UPDATE SET
+        slug = excluded.slug,
+        status = excluded.status,
+        contact_email = excluded.contact_email,
+        setup_token = excluded.setup_token,
+        data = excluded.data,
+        updated_at = now()
+    `;
   }
-  return db;
 }
 
-export function readDb(): DB {
-  ensureDb();
-  const raw = fs.readFileSync(DB_PATH, "utf-8");
-  return normalize(JSON.parse(raw) as DB);
+// These two writes happen on the public club page and can realistically fire
+// concurrently for the same club (one fan clicking an offer while another
+// submits the join form). A plain readDb()/writeDb() round-trip would race —
+// each request overwrites the whole `data` blob with its own stale snapshot,
+// silently dropping the other's write. These do the mutation as a single
+// atomic SQL statement instead, computed from the row's current value.
+
+export async function appendFanSignup(
+  slug: string,
+  fan: { id: string; name: string; email: string; createdAt: string }
+): Promise<boolean> {
+  await ensureInitialized();
+  const client = sql();
+  const rows = (await client`
+    UPDATE clubs
+    SET data = jsonb_set(
+      data,
+      '{fanSignups}',
+      COALESCE(data->'fanSignups', '[]'::jsonb) || ${JSON.stringify(fan)}::jsonb
+    )
+    WHERE slug = ${slug}
+    RETURNING id
+  `) as { id: string }[];
+  return rows.length > 0;
 }
 
-export function writeDb(db: DB): void {
-  ensureDb();
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+export async function recordSponsorClick(
+  slug: string,
+  sponsorId: string,
+  event: { id: string; sponsorId: string; createdAt: string }
+): Promise<{ linkUrl: string } | null> {
+  await ensureInitialized();
+  const client = sql();
+  const rows = (await client`
+    UPDATE clubs
+    SET data = data || jsonb_build_object(
+      'sponsors', (
+        SELECT jsonb_agg(
+          CASE WHEN elem->>'id' = ${sponsorId}
+            THEN jsonb_set(elem, '{clicks}', to_jsonb(COALESCE((elem->>'clicks')::int, 0) + 1))
+            ELSE elem
+          END
+        )
+        FROM jsonb_array_elements(data->'sponsors') AS elem
+      ),
+      'clickEvents', COALESCE(data->'clickEvents', '[]'::jsonb) || ${JSON.stringify(event)}::jsonb
+    )
+    WHERE slug = ${slug}
+    RETURNING (
+      SELECT elem->>'linkUrl'
+      FROM jsonb_array_elements(data->'sponsors') AS elem
+      WHERE elem->>'id' = ${sponsorId}
+    ) AS "linkUrl"
+  `) as { linkUrl: string | null }[];
+  const linkUrl = rows[0]?.linkUrl;
+  return linkUrl ? { linkUrl } : null;
 }
 
-export function resetDb(): void {
-  ensureDb();
-  fs.writeFileSync(DB_PATH, JSON.stringify(seedData(), null, 2));
+export async function resetDb(): Promise<void> {
+  await ensureInitialized();
+  const client = sql();
+  await client`DELETE FROM clubs`;
+  await client`DELETE FROM admins`;
+  initPromise = null;
+  await ensureInitialized();
 }
+
+// --- Pure helpers (no I/O) ------------------------------------------------
 
 export function slugify(input: string): string {
   return input
@@ -151,8 +302,7 @@ export function slugify(input: string): string {
 export function uniqueSlug(db: DB, base: string, ignoreId?: string): string {
   let slug = slugify(base) || "club";
   let n = 2;
-  const taken = (s: string) =>
-    db.clubs.some((c) => c.slug === s && c.id !== ignoreId);
+  const taken = (s: string) => db.clubs.some((c) => c.slug === s && c.id !== ignoreId);
   while (taken(slug)) {
     slug = `${slugify(base)}-${n}`;
     n += 1;

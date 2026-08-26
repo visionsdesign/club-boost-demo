@@ -13,7 +13,7 @@ export default async function AdminClubAnalyticsPage({ params }: { params: Promi
   }
 
   const { id } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubById(db, id);
   if (!club) notFound();
 

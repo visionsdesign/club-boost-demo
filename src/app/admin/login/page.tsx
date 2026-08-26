@@ -1,7 +1,6 @@
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import LoginForm from "@/components/LoginForm";
-import { DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD } from "@/lib/db";
 
 export default function AdminLoginPage() {
   return (
@@ -12,11 +11,7 @@ export default function AdminLoginPage() {
           <div className="kicker mb-2">Club Boost admin</div>
           <h1 className="font-display font-bold text-2xl">Sign in to review clubs</h1>
         </div>
-        <LoginForm
-          submitUrl="/api/admin/login"
-          redirectTo="/admin"
-          demoHint={`${DEMO_ADMIN_EMAIL} / ${DEMO_ADMIN_PASSWORD}`}
-        />
+        <LoginForm submitUrl="/api/admin/login" redirectTo="/admin" />
         <p className="text-center text-sm text-cream-dim mt-6">
           Are you a club?{" "}
           <Link href="/club/login" className="text-lime hover:underline">

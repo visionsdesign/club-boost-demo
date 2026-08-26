@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { id } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubById(db, id);
   if (!club) {
     return NextResponse.json({ error: "Club not found." }, { status: 404 });
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   club.approvedAt = new Date().toISOString();
   club.setupToken = randomToken();
 
-  writeDb(db);
+  await writeDb(db);
 
   return NextResponse.json({ ok: true, setupToken: club.setupToken });
 }

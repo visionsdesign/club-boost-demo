@@ -5,7 +5,7 @@ import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
-  const db = readDb();
+  const db = await readDb();
   const club = db.clubs.find(
     (c) => c.contactEmail.toLowerCase() === String(email ?? "").toLowerCase()
   );

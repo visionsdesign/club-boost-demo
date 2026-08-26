@@ -10,16 +10,32 @@ Sora / Bricolage Grotesque type).
 
 ## Running it
 
+Data lives in a real Postgres database (via [Neon](https://neon.tech)'s serverless
+driver), so it persists properly on serverless hosts like Netlify — not in a local
+file. You need a connection string before the app will start:
+
+1. Get a `DATABASE_URL`:
+   - **Easiest if deploying to Netlify:** in the Netlify dashboard, open your site →
+     **Databases** → enable **Netlify DB**. It provisions a free Neon Postgres
+     instance and sets `DATABASE_URL` (or a similarly-named var) on the deployed
+     site automatically. Copy that value for local use too (Site settings →
+     Environment variables, or `netlify env:pull`).
+   - **Or standalone:** create a free database at [neon.tech](https://neon.tech) and
+     copy its connection string.
+2. `cp .env.example .env.local` and paste the connection string in as `DATABASE_URL`.
+3. Install and run:
+
 ```bash
 npm install
 npm run dev
 ```
 
 Open the URL it prints (defaults to `http://localhost:3000` — pass `-- -p 3010` etc. if
-that port's taken locally).
+that port's taken locally). The database schema and seed data (a demo admin and an
+active Chester FC club) are created automatically the first time the app connects.
 
-Data is stored in `data/db.json` (created on first run, seeded with a demo admin and an
-active Chester FC club). Delete that file and restart to reset the demo to a clean state.
+Nothing to reset manually — since real registrations/edits persist properly now, treat
+it like a real (if small) database rather than a disposable file.
 
 ## The flow
 
@@ -36,6 +52,16 @@ active Chester FC club). Delete that file and restart to reset the demo to a cle
    each club page logs interest the same way.
 5. **Admin can also edit any club's page** directly from `/admin/clubs/<id>` — same
    editor, so both admin and club can customise a landing page as discussed.
+
+## Deploying to Netlify
+
+Netlify auto-detects Next.js and the defaults it suggests are correct as-is: base
+directory blank, build command `npm run build`, publish directory `.next`, functions
+directory blank. The one thing to set explicitly is `DATABASE_URL` under Site settings
+→ Environment variables — if you provisioned the database via Netlify DB (see above),
+that's likely already done for you under a Netlify-managed variable name; just confirm
+`DATABASE_URL` is set to that same value (or update `src/lib/db.ts` if Netlify's
+variable is named differently).
 
 ## Demo credentials
 

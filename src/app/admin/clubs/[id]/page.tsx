@@ -14,7 +14,7 @@ export default async function AdminClubEditPage({ params }: { params: Promise<{ 
   }
 
   const { id } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = findClubById(db, id);
   if (!club) notFound();
 

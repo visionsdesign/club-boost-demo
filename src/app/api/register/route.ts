@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please fill in all required fields." }, { status: 400 });
   }
 
-  const db = readDb();
+  const db = await readDb();
 
   const alreadyExists = db.clubs.some(
     (c) => c.contactEmail.toLowerCase() === String(contactEmail).toLowerCase()
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   };
 
   db.clubs.push(club);
-  writeDb(db);
+  await writeDb(db);
 
   return NextResponse.json({ ok: true, clubId: club.id });
 }

@@ -4,7 +4,7 @@ import { readDb } from "@/lib/db";
 
 export default async function SetupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const db = readDb();
+  const db = await readDb();
   const club = db.clubs.find((c) => c.setupToken === token && c.status === "awaiting_setup");
 
   return (

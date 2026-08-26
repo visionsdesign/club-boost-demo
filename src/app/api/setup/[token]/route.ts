@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
   }
 
-  const db = readDb();
+  const db = await readDb();
   const club = db.clubs.find((c) => c.setupToken === token && c.status === "awaiting_setup");
   if (!club) {
     return NextResponse.json({ error: "This setup link is invalid or has already been used." }, { status: 404 });
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     heroImageDataUrl: club.branding.heroImageDataUrl,
   };
 
-  writeDb(db);
+  await writeDb(db);
 
   const sessionToken = createSessionToken({ type: "club", id: club.id });
   const res = NextResponse.json({ ok: true, slug: club.slug });
