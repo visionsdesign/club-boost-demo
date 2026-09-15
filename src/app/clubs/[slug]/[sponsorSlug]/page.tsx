@@ -177,6 +177,7 @@ export default async function SponsorPage({
                 accent={accent}
                 btnText={btnText}
                 btnRadius={btnRadius}
+                align="left"
                 doneMessage="You're on the list — this offer is unlocked now."
               />
             </div>

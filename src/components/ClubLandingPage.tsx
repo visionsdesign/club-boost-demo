@@ -256,6 +256,7 @@ export default function ClubLandingPage({
                   accent={accent}
                   btnText={btnText}
                   btnRadius={btnRadius}
+                  align="center"
                   doneMessage="We've logged your details — your partner offers are unlocked, just visit any partner's page."
                 />
               </div>

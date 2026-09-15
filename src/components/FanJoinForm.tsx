@@ -10,11 +10,20 @@ export interface FanJoinFormProps {
   btnText: string;
   btnRadius: string;
   doneMessage?: string;
+  align?: "center" | "left";
 }
 
 type AuthMode = "join" | "login";
 
-export default function FanJoinForm({ slug, mode, accent, btnText, btnRadius, doneMessage }: FanJoinFormProps) {
+export default function FanJoinForm({
+  slug,
+  mode,
+  accent,
+  btnText,
+  btnRadius,
+  doneMessage,
+  align = "left",
+}: FanJoinFormProps) {
   const router = useRouter();
   const [authMode, setAuthMode] = useState<AuthMode>("join");
   const [name, setName] = useState("");
@@ -55,9 +64,11 @@ export default function FanJoinForm({ slug, mode, accent, btnText, btnRadius, do
     }
   }
 
+  const blockAlignClass = align === "center" ? "mx-auto" : "";
+
   if (status === "done") {
     return (
-      <div className="card p-6 text-left">
+      <div className={`card p-6 text-left max-w-sm ${blockAlignClass}`}>
         <div className="font-semibold" style={{ color: accent }}>
           {authMode === "join" ? "You're on the list." : "Welcome back."}
         </div>
@@ -72,8 +83,8 @@ export default function FanJoinForm({ slug, mode, accent, btnText, btnRadius, do
   }
 
   return (
-    <div>
-      <form onSubmit={submit} className="space-y-3 text-left max-w-sm mx-auto sm:mx-0">
+    <div className={`max-w-sm ${blockAlignClass} ${align === "center" ? "text-center" : "text-left"}`}>
+      <form onSubmit={submit} className="space-y-3 text-left">
         {authMode === "join" && (
           <input
             required
