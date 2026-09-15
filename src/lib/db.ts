@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { neon } from "@neondatabase/serverless";
-import type { DB, Club, Admin, Branding, Sponsor, ClickEvent } from "./types";
+import type { DB, Club, Admin, Branding, Sponsor, SponsorOffer, ClickEvent } from "./types";
 
 export const DEMO_ADMIN_EMAIL = "cto@visionsdesign.co.uk";
 export const DEMO_ADMIN_PASSWORD = "clubboost2026";
@@ -57,37 +57,57 @@ function seedData(): { admins: Admin[]; clubs: Club[] } {
           tagline:
             "Chester FC has teamed up with Club Boost to turn our sponsors into real deals for our supporters — and give our partners the proof they've earned.",
           ctaText: "Get our fan offers",
+          aboutHtml:
+            "<p>Chester FC is a proud non-league football club with deep roots in the local community. We're teaming up with Club Boost to give our sponsors real, measurable value — and our fans genuinely useful offers in return.</p>",
         },
         sponsors: [
           {
             id: "sponsor-1",
+            slug: "perfect-getaways",
             name: "Perfect Getaways",
             tier: "principal",
-            offerTitle: "Your Official Holiday Partner",
-            offerDescription:
-              "Exclusive 12% off summer bookings for Chester FC supporters, plus early access to the Summer Superdraw.",
-            linkUrl: "https://example.com/perfect-getaways",
-            clicks: 14,
+            infoHtml:
+              "<p>Perfect Getaways has been Chester FC's official holiday partner since 2019, helping supporters get away without breaking the bank.</p>",
+            offers: [
+              {
+                id: "offer-1a",
+                title: "Your Official Holiday Partner",
+                description:
+                  "Exclusive 12% off summer bookings for Chester FC supporters, plus early access to the Summer Superdraw.",
+                linkUrl: "https://example.com/perfect-getaways",
+                clicks: 14,
+              },
+            ],
           },
           {
             id: "sponsor-2",
+            slug: "enterprise-cars",
             name: "Enterprise Cars",
             tier: "partner",
-            offerTitle: "10% Off Local Rentals",
-            offerDescription:
-              "Show your Club Boost card at the Chester branch for 10% off weekend rentals.",
-            linkUrl: "https://example.com/enterprise",
-            clicks: 9,
+            offers: [
+              {
+                id: "offer-2a",
+                title: "10% Off Local Rentals",
+                description: "Show your Club Boost card at the Chester branch for 10% off weekend rentals.",
+                linkUrl: "https://example.com/enterprise",
+                clicks: 9,
+              },
+            ],
           },
           {
             id: "sponsor-3",
+            slug: "mbna",
             name: "MBNA",
             tier: "partner",
-            offerTitle: "Fan Reward Card",
-            offerDescription:
-              "Cashback on everyday spending, with a share of every transaction fed back to the club.",
-            linkUrl: "https://example.com/mbna",
-            clicks: 5,
+            offers: [
+              {
+                id: "offer-3a",
+                title: "Fan Reward Card",
+                description: "Cashback on everyday spending, with a share of every transaction fed back to the club.",
+                linkUrl: "https://example.com/mbna",
+                clicks: 5,
+              },
+            ],
           },
         ],
         fanSignups: [
@@ -101,11 +121,48 @@ function seedData(): { admins: Admin[]; clubs: Club[] } {
   };
 }
 
+// A sponsor used to carry a single offer directly (offerTitle/offerDescription/
+// linkUrl/clicks). Older records — local or already in the database — may still
+// be in that shape. Wrap them into the new `offers` array so every reader can
+// assume the new shape unconditionally.
+function migrateLegacySponsor(sponsor: Sponsor): Sponsor {
+  if (Array.isArray(sponsor.offers)) return sponsor;
+  const legacy = sponsor as unknown as {
+    offerTitle?: string;
+    offerDescription?: string;
+    linkUrl?: string;
+    clicks?: number;
+  };
+  const offers: SponsorOffer[] =
+    legacy.offerTitle || legacy.linkUrl
+      ? [
+          {
+            id: `${sponsor.id}-offer-1`,
+            title: legacy.offerTitle ?? "",
+            description: legacy.offerDescription ?? "",
+            linkUrl: legacy.linkUrl ?? "",
+            clicks: legacy.clicks ?? 0,
+          },
+        ]
+      : [];
+  return { ...sponsor, offers };
+}
+
 function normalizeClub(club: Club): Club {
   if (!Array.isArray(club.clickEvents)) club.clickEvents = [];
   if (!Array.isArray(club.fanSignups)) club.fanSignups = [];
   if (!Array.isArray(club.sponsors)) club.sponsors = [];
   if (!club.branding.buttonTextColor) club.branding.buttonTextColor = "#05130a";
+
+  club.sponsors = club.sponsors.map(migrateLegacySponsor);
+
+  const takenSlugs = new Set(club.sponsors.map((s) => s.slug).filter(Boolean));
+  for (const sponsor of club.sponsors) {
+    if (!sponsor.slug) {
+      sponsor.slug = uniqueSponsorSlug(takenSlugs, sponsor.name || sponsor.id);
+      takenSlugs.add(sponsor.slug);
+    }
+  }
   return club;
 }
 
@@ -177,6 +234,45 @@ async function ensureInitialized(): Promise<void> {
           `;
         }
       }
+
+      // One-time, idempotent migration: wrap any sponsor still in the old
+      // single-offer shape (no `offers` array) into `offers: [...]`, directly
+      // in the database. Needed because the atomic click-tracking update below
+      // reads/writes `sponsors[].offers` straight in SQL — it can't rely on
+      // normalizeClub() having run in JS first.
+      await db`
+        UPDATE clubs
+        SET data = jsonb_set(
+          data,
+          '{sponsors}',
+          (
+            SELECT jsonb_agg(
+              CASE WHEN sp ? 'offers' THEN sp
+              ELSE (sp - 'offerTitle' - 'offerDescription' - 'linkUrl' - 'clicks') || jsonb_build_object(
+                'offers',
+                CASE WHEN sp->>'offerTitle' IS NOT NULL OR sp->>'linkUrl' IS NOT NULL THEN
+                  jsonb_build_array(
+                    jsonb_build_object(
+                      'id', (sp->>'id') || '-offer-1',
+                      'title', COALESCE(sp->>'offerTitle', ''),
+                      'description', COALESCE(sp->>'offerDescription', ''),
+                      'linkUrl', COALESCE(sp->>'linkUrl', ''),
+                      'clicks', COALESCE((sp->>'clicks')::int, 0)
+                    )
+                  )
+                ELSE '[]'::jsonb
+                END
+              )
+              END
+            )
+            FROM jsonb_array_elements(data->'sponsors') AS sp
+          )
+        )
+        WHERE data->'sponsors' IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements(data->'sponsors') AS sp WHERE NOT (sp ? 'offers')
+          )
+      `;
     })();
   }
   return initPromise;
@@ -248,10 +344,11 @@ export async function appendFanSignup(
   return rows.length > 0;
 }
 
-export async function recordSponsorClick(
+export async function recordOfferClick(
   slug: string,
   sponsorId: string,
-  event: { id: string; sponsorId: string; createdAt: string }
+  offerId: string,
+  event: { id: string; sponsorId: string; offerId: string; createdAt: string }
 ): Promise<{ linkUrl: string } | null> {
   await ensureInitialized();
   const client = sql();
@@ -260,20 +357,30 @@ export async function recordSponsorClick(
     SET data = data || jsonb_build_object(
       'sponsors', (
         SELECT jsonb_agg(
-          CASE WHEN elem->>'id' = ${sponsorId}
-            THEN jsonb_set(elem, '{clicks}', to_jsonb(COALESCE((elem->>'clicks')::int, 0) + 1))
-            ELSE elem
+          CASE WHEN sp->>'id' = ${sponsorId}
+            THEN sp || jsonb_build_object(
+              'offers', (
+                SELECT jsonb_agg(
+                  CASE WHEN off->>'id' = ${offerId}
+                    THEN jsonb_set(off, '{clicks}', to_jsonb(COALESCE((off->>'clicks')::int, 0) + 1))
+                    ELSE off
+                  END
+                )
+                FROM jsonb_array_elements(sp->'offers') AS off
+              )
+            )
+            ELSE sp
           END
         )
-        FROM jsonb_array_elements(data->'sponsors') AS elem
+        FROM jsonb_array_elements(data->'sponsors') AS sp
       ),
       'clickEvents', COALESCE(data->'clickEvents', '[]'::jsonb) || ${JSON.stringify(event)}::jsonb
     )
     WHERE slug = ${slug}
     RETURNING (
-      SELECT elem->>'linkUrl'
-      FROM jsonb_array_elements(data->'sponsors') AS elem
-      WHERE elem->>'id' = ${sponsorId}
+      SELECT off->>'linkUrl'
+      FROM jsonb_array_elements(data->'sponsors') AS sp, jsonb_array_elements(sp->'offers') AS off
+      WHERE sp->>'id' = ${sponsorId} AND off->>'id' = ${offerId}
     ) AS "linkUrl"
   `) as { linkUrl: string | null }[];
   const linkUrl = rows[0]?.linkUrl;
@@ -318,10 +425,26 @@ export function findClubById(db: DB, id: string): Club | undefined {
   return db.clubs.find((c) => c.id === id);
 }
 
+export function findSponsorBySlug(club: Club, sponsorSlug: string): Sponsor | undefined {
+  return club.sponsors.find((s) => s.slug === sponsorSlug);
+}
+
+export function uniqueSponsorSlug(taken: Set<string>, base: string): string {
+  let slug = slugify(base) || "partner";
+  let n = 2;
+  while (taken.has(slug)) {
+    slug = `${slugify(base)}-${n}`;
+    n += 1;
+  }
+  return slug;
+}
+
 export interface BrandingUpdatePayload {
   clubName?: string;
   branding: Branding;
-  sponsors: Array<Omit<Sponsor, "clicks"> & { clicks?: number }>;
+  sponsors: Array<
+    Omit<Sponsor, "offers"> & { offers: Array<Omit<SponsorOffer, "clicks"> & { clicks?: number }> }
+  >;
 }
 
 export function applyBrandingUpdate(club: Club, payload: BrandingUpdatePayload): void {
@@ -345,20 +468,42 @@ export function applyBrandingUpdate(club: Club, payload: BrandingUpdatePayload):
     heroHeading: payload.branding.heroHeading || club.branding.heroHeading,
     tagline: payload.branding.tagline || club.branding.tagline,
     ctaText: payload.branding.ctaText || club.branding.ctaText,
+    aboutHtml: payload.branding.aboutHtml,
+    aboutImageDataUrl: payload.branding.aboutImageDataUrl,
   };
 
   const existingById = new Map(club.sponsors.map((s) => [s.id, s]));
+  const takenSlugs = new Set(club.sponsors.map((s) => s.slug));
+
   club.sponsors = (payload.sponsors || []).map((incoming) => {
     const existing = incoming.id ? existingById.get(incoming.id) : undefined;
+    let slug = existing?.slug;
+    if (!slug) {
+      slug = uniqueSponsorSlug(takenSlugs, incoming.name);
+      takenSlugs.add(slug);
+    }
+
+    const existingOffersById = new Map((existing?.offers ?? []).map((o) => [o.id, o]));
+    const offers: SponsorOffer[] = (incoming.offers || []).map((incomingOffer) => {
+      const existingOffer = incomingOffer.id ? existingOffersById.get(incomingOffer.id) : undefined;
+      return {
+        id: existingOffer?.id ?? `offer-${crypto.randomBytes(6).toString("hex")}`,
+        title: incomingOffer.title,
+        description: incomingOffer.description,
+        linkUrl: incomingOffer.linkUrl,
+        clicks: existingOffer?.clicks ?? 0,
+      };
+    });
+
     return {
       id: existing?.id ?? `sponsor-${crypto.randomBytes(6).toString("hex")}`,
+      slug,
       name: incoming.name,
       tier: incoming.tier === "principal" ? "principal" : "partner",
       logoDataUrl: incoming.logoDataUrl,
-      offerTitle: incoming.offerTitle,
-      offerDescription: incoming.offerDescription,
-      linkUrl: incoming.linkUrl,
-      clicks: existing?.clicks ?? 0,
+      bannerImageDataUrl: incoming.bannerImageDataUrl,
+      infoHtml: incoming.infoHtml,
+      offers,
     };
   });
 }

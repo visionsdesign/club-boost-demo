@@ -2,15 +2,23 @@ export type ClubStatus = "pending" | "rejected" | "awaiting_setup" | "active";
 
 export type SponsorTier = "principal" | "partner";
 
+export interface SponsorOffer {
+  id: string;
+  title: string;
+  description: string;
+  linkUrl: string;
+  clicks: number;
+}
+
 export interface Sponsor {
   id: string;
+  slug: string;
   name: string;
   tier: SponsorTier;
   logoDataUrl?: string;
-  offerTitle: string;
-  offerDescription: string;
-  linkUrl: string;
-  clicks: number;
+  bannerImageDataUrl?: string;
+  infoHtml?: string;
+  offers: SponsorOffer[];
 }
 
 export interface Branding {
@@ -22,6 +30,8 @@ export interface Branding {
   heroHeading: string;
   tagline: string;
   ctaText: string;
+  aboutHtml?: string;
+  aboutImageDataUrl?: string;
 }
 
 export interface FanSignup {
@@ -34,6 +44,7 @@ export interface FanSignup {
 export interface ClickEvent {
   id: string;
   sponsorId: string;
+  offerId?: string;
   createdAt: string;
 }
 

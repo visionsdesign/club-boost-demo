@@ -65,18 +65,23 @@ function bucketByDay(dates: string[], now: Date): DayBucket[] {
   }));
 }
 
+function sponsorClicks(sponsor: Club["sponsors"][number]): number {
+  return sponsor.offers.reduce((sum, o) => sum + o.clicks, 0);
+}
+
 export function buildAnalytics(club: Club, now: Date = new Date()): ClubAnalytics {
-  const totalClicks = club.sponsors.reduce((sum, s) => sum + s.clicks, 0);
-  const liveOffers = club.sponsors.length;
+  const totalClicks = club.sponsors.reduce((sum, s) => sum + sponsorClicks(s), 0);
+  const liveOffers = club.sponsors.reduce((sum, s) => sum + s.offers.length, 0);
 
   const sponsorBreakdown: SponsorBreakdown[] = [...club.sponsors]
+    .map((s) => ({ sponsor: s, clicks: sponsorClicks(s) }))
     .sort((a, b) => b.clicks - a.clicks)
-    .map((s) => ({
+    .map(({ sponsor: s, clicks }) => ({
       id: s.id,
       name: s.name || "Untitled sponsor",
       tier: s.tier,
-      clicks: s.clicks,
-      share: totalClicks > 0 ? Math.round((s.clicks / totalClicks) * 100) : 0,
+      clicks,
+      share: totalClicks > 0 ? Math.round((clicks / totalClicks) * 100) : 0,
     }));
 
   const sponsorNameById = new Map(club.sponsors.map((s) => [s.id, s.name || "Untitled sponsor"]));

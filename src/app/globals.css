@@ -73,6 +73,10 @@ h1, h2, h3, h4 {
 .btn-outline:hover {
   border-color: var(--lime);
 }
+.btn-brand-hover:hover {
+  border-color: var(--club-accent, var(--lime));
+  color: var(--club-accent, var(--lime));
+}
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -115,4 +119,88 @@ h1, h2, h3, h4 {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.prose-info p {
+  margin: 0 0 0.9em;
+}
+.prose-info p:last-child {
+  margin-bottom: 0;
+}
+.prose-info ul,
+.prose-info ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.4em;
+}
+.prose-info ul {
+  list-style: disc;
+}
+.prose-info ol {
+  list-style: decimal;
+}
+.prose-info li {
+  margin-bottom: 0.3em;
+}
+.prose-info a {
+  color: var(--lime);
+  text-decoration: underline;
+}
+.prose-info strong {
+  color: var(--cream);
+  font-weight: 700;
+}
+.prose-info em {
+  font-style: italic;
+}
+
+.rte-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  color: var(--cream-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.rte-toolbar button:hover {
+  color: var(--cream);
+  border-color: var(--lime);
+}
+.rte-editor {
+  min-height: 120px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 10px 14px;
+  color: var(--cream);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.rte-editor:focus {
+  outline: none;
+  border-color: var(--lime);
+}
+.rte-editor ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.rte-editor ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.rte-editor a {
+  color: var(--lime);
+  text-decoration: underline;
+}
+.rte-editor[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--cream-dim);
+  opacity: 0.6;
+  pointer-events: none;
 }

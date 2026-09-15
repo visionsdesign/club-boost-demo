@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ClubLandingPage from "./ClubLandingPage";
-import type { Branding, Sponsor } from "@/lib/types";
+import RichTextEditor from "./RichTextEditor";
+import type { Branding, Sponsor, SponsorOffer } from "@/lib/types";
 
 export interface BrandingEditorProps {
   clubId: string;
@@ -33,10 +34,19 @@ function fileToDataUrl(file: File): Promise<string> {
 function newSponsor(): EditableSponsor {
   return {
     id: `new-${Math.random().toString(36).slice(2)}`,
+    slug: "",
     name: "",
     tier: "partner",
-    offerTitle: "",
-    offerDescription: "",
+    infoHtml: "",
+    offers: [],
+  };
+}
+
+function newOffer(): SponsorOffer {
+  return {
+    id: `new-${Math.random().toString(36).slice(2)}`,
+    title: "",
+    description: "",
     linkUrl: "",
     clicks: 0,
   };
@@ -61,7 +71,10 @@ export default function BrandingEditor({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const totalClicks = useMemo(() => sponsors.reduce((s, sp) => s + sp.clicks, 0), [sponsors]);
+  const totalClicks = useMemo(
+    () => sponsors.reduce((s, sp) => s + sp.offers.reduce((os, o) => os + o.clicks, 0), 0),
+    [sponsors]
+  );
 
   function updateBranding<K extends keyof Branding>(key: K, value: Branding[K]) {
     setBranding((b) => ({ ...b, [key]: value }));
@@ -78,6 +91,31 @@ export default function BrandingEditor({
     setSaved(false);
   }
 
+  function addOffer(sponsorId: string) {
+    setSponsors((list) =>
+      list.map((s) => (s.id === sponsorId ? { ...s, offers: [...s.offers, newOffer()] } : s))
+    );
+    setSaved(false);
+  }
+
+  function updateOffer(sponsorId: string, offerId: string, patch: Partial<SponsorOffer>) {
+    setSponsors((list) =>
+      list.map((s) =>
+        s.id === sponsorId
+          ? { ...s, offers: s.offers.map((o) => (o.id === offerId ? { ...o, ...patch } : o)) }
+          : s
+      )
+    );
+    setSaved(false);
+  }
+
+  function removeOffer(sponsorId: string, offerId: string) {
+    setSponsors((list) =>
+      list.map((s) => (s.id === sponsorId ? { ...s, offers: s.offers.filter((o) => o.id !== offerId) } : s))
+    );
+    setSaved(false);
+  }
+
   async function handleLogoUpload(file: File | null) {
     if (!file) return;
     const dataUrl = await fileToDataUrl(file);
@@ -90,10 +128,22 @@ export default function BrandingEditor({
     updateBranding("heroImageDataUrl", dataUrl);
   }
 
+  async function handleAboutImageUpload(file: File | null) {
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    updateBranding("aboutImageDataUrl", dataUrl);
+  }
+
   async function handleSponsorLogoUpload(id: string, file: File | null) {
     if (!file) return;
     const dataUrl = await fileToDataUrl(file);
     updateSponsor(id, { logoDataUrl: dataUrl });
+  }
+
+  async function handleSponsorBannerUpload(id: string, file: File | null) {
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    updateSponsor(id, { bannerImageDataUrl: dataUrl });
   }
 
   async function save() {
@@ -288,6 +338,57 @@ export default function BrandingEditor({
         </div>
 
         <div className="card p-5 space-y-4">
+          <div className="kicker">About section</div>
+          <p className="text-xs text-cream-dim -mt-2">
+            Shown on your public page below the stats strip, as a 50/50 split with an image.
+          </p>
+          <div>
+            <label className="field-label">About image (optional)</label>
+            <div className="flex items-center gap-3">
+              {branding.aboutImageDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.aboutImageDataUrl}
+                  alt=""
+                  className="h-12 w-20 rounded-md object-cover border border-[var(--line)]"
+                />
+              ) : (
+                <div className="h-12 w-20 rounded-md bg-ink-2 border border-[var(--line)]" />
+              )}
+              <label className="btn btn-outline cursor-pointer text-sm">
+                Upload
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleAboutImageUpload(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {branding.aboutImageDataUrl && (
+                <button
+                  type="button"
+                  onClick={() => updateBranding("aboutImageDataUrl", undefined)}
+                  className="text-coral text-xs hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-cream-dim mt-2">
+              Leave blank to use your club logo instead.
+            </p>
+          </div>
+          <div>
+            <label className="field-label">About text</label>
+            <RichTextEditor
+              value={branding.aboutHtml || ""}
+              onChange={(html) => updateBranding("aboutHtml", html)}
+              placeholder={`Tell fans a bit about ${clubName || "your club"}…`}
+            />
+          </div>
+        </div>
+
+        <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="kicker">Sponsors &amp; offers</div>
             <button
@@ -306,22 +407,20 @@ export default function BrandingEditor({
           <div className="space-y-4">
             {sponsors.map((sponsor) => (
               <div key={sponsor.id} className="rounded-lg border border-[var(--line)] p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <input
-                    className="field-input flex-1"
-                    placeholder="Sponsor name"
-                    value={sponsor.name}
-                    onChange={(e) => updateSponsor(sponsor.id, { name: e.target.value })}
-                  />
-                  <select
-                    className="field-input w-auto"
-                    value={sponsor.tier}
-                    onChange={(e) => updateSponsor(sponsor.id, { tier: e.target.value as Sponsor["tier"] })}
-                  >
-                    <option value="partner">Partner</option>
-                    <option value="principal">Principal</option>
-                  </select>
-                </div>
+                <input
+                  className="field-input"
+                  placeholder="Sponsor name"
+                  value={sponsor.name}
+                  onChange={(e) => updateSponsor(sponsor.id, { name: e.target.value })}
+                />
+                <select
+                  className="field-input"
+                  value={sponsor.tier}
+                  onChange={(e) => updateSponsor(sponsor.id, { tier: e.target.value as Sponsor["tier"] })}
+                >
+                  <option value="partner">Partner</option>
+                  <option value="principal">Principal</option>
+                </select>
                 <div className="flex items-center gap-3">
                   {sponsor.logoDataUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -339,33 +438,115 @@ export default function BrandingEditor({
                     />
                   </label>
                 </div>
-                <input
-                  className="field-input"
-                  placeholder="Offer title (e.g. 12% off summer bookings)"
-                  value={sponsor.offerTitle}
-                  onChange={(e) => updateSponsor(sponsor.id, { offerTitle: e.target.value })}
-                />
-                <textarea
-                  className="field-input"
-                  rows={2}
-                  placeholder="Offer description"
-                  value={sponsor.offerDescription}
-                  onChange={(e) => updateSponsor(sponsor.id, { offerDescription: e.target.value })}
-                />
-                <input
-                  className="field-input"
-                  placeholder="Destination link (https://…)"
-                  value={sponsor.linkUrl}
-                  onChange={(e) => updateSponsor(sponsor.id, { linkUrl: e.target.value })}
-                />
-                <div className="flex items-center justify-between text-xs text-cream-dim">
-                  <span>{sponsor.clicks} tracked click{sponsor.clicks === 1 ? "" : "s"} so far</span>
+
+                <div>
+                  <label className="field-label">Banner image (optional)</label>
+                  <div className="flex items-center gap-3">
+                    {sponsor.bannerImageDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={sponsor.bannerImageDataUrl}
+                        alt=""
+                        className="h-9 w-16 rounded-md object-cover border border-[var(--line)]"
+                      />
+                    ) : (
+                      <div className="h-9 w-16 rounded-md bg-ink-2 border border-[var(--line)]" />
+                    )}
+                    <label className="text-xs text-lime cursor-pointer hover:underline">
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleSponsorBannerUpload(sponsor.id, e.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    {sponsor.bannerImageDataUrl && (
+                      <button
+                        type="button"
+                        onClick={() => updateSponsor(sponsor.id, { bannerImageDataUrl: undefined })}
+                        className="text-coral text-xs hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-cream-dim mt-1">
+                    Shown full-width on {sponsor.name || "this sponsor"}&apos;s own page, below their logo.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="field-label">Information</label>
+                  <RichTextEditor
+                    value={sponsor.infoHtml || ""}
+                    onChange={(html) => updateSponsor(sponsor.id, { infoHtml: html })}
+                    placeholder={`Tell fans a bit about ${sponsor.name || "this partner"}…`}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="field-label mb-0">Offers</label>
+                    <button
+                      type="button"
+                      onClick={() => addOffer(sponsor.id)}
+                      className="text-xs text-lime hover:underline"
+                    >
+                      + Add offer
+                    </button>
+                  </div>
+
+                  {sponsor.offers.length === 0 && (
+                    <p className="text-xs text-cream-dim">No offers yet — add one below.</p>
+                  )}
+
+                  <div className="space-y-3">
+                    {sponsor.offers.map((offer) => (
+                      <div key={offer.id} className="rounded-md border border-[var(--line)] p-3 space-y-2">
+                        <input
+                          className="field-input"
+                          placeholder="Offer title (e.g. 12% off summer bookings)"
+                          value={offer.title}
+                          onChange={(e) => updateOffer(sponsor.id, offer.id, { title: e.target.value })}
+                        />
+                        <textarea
+                          className="field-input"
+                          rows={2}
+                          placeholder="Offer description"
+                          value={offer.description}
+                          onChange={(e) => updateOffer(sponsor.id, offer.id, { description: e.target.value })}
+                        />
+                        <input
+                          className="field-input"
+                          placeholder="Destination link (https://…)"
+                          value={offer.linkUrl}
+                          onChange={(e) => updateOffer(sponsor.id, offer.id, { linkUrl: e.target.value })}
+                        />
+                        <div className="flex items-center justify-between text-xs text-cream-dim">
+                          <span>
+                            {offer.clicks} tracked click{offer.clicks === 1 ? "" : "s"} so far
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeOffer(sponsor.id, offer.id)}
+                            className="text-coral hover:underline"
+                          >
+                            Remove offer
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-1">
                   <button
                     type="button"
                     onClick={() => removeSponsor(sponsor.id)}
-                    className="text-coral hover:underline"
+                    className="text-coral text-xs hover:underline"
                   >
-                    Remove
+                    Remove sponsor
                   </button>
                 </div>
               </div>

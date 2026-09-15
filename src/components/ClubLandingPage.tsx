@@ -52,7 +52,11 @@ export default function ClubLandingPage({
     }
   }
 
-  const totalClicks = sponsors.reduce((sum, s) => sum + s.clicks, 0);
+  const totalClicks = sponsors.reduce(
+    (sum, s) => sum + s.offers.reduce((oSum, o) => oSum + o.clicks, 0),
+    0
+  );
+  const totalOffers = sponsors.reduce((sum, s) => sum + s.offers.length, 0);
 
   return (
     <div
@@ -137,7 +141,7 @@ export default function ClubLandingPage({
         <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-3 gap-6 text-center">
           <div>
             <div className="text-2xl sm:text-3xl font-display font-bold" style={{ color: accent }}>
-              {sponsors.length}
+              {totalOffers}
             </div>
             <div className="text-xs text-cream-dim mt-1 uppercase tracking-wide">Live partner offers</div>
           </div>
@@ -156,6 +160,47 @@ export default function ClubLandingPage({
         </div>
       </section>
 
+      {/* About */}
+      {(branding.aboutHtml || branding.aboutImageDataUrl || branding.logoDataUrl) && (
+        <section className="border-b border-[var(--line)]">
+          <div className="max-w-5xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="kicker mb-3" style={{ color: accent }}>
+                About {clubName}
+              </div>
+              {branding.aboutHtml ? (
+                <div
+                  className="prose-info text-cream-dim leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: branding.aboutHtml }}
+                />
+              ) : (
+                <p className="text-cream-dim leading-relaxed">
+                  {clubName} has teamed up with Club Boost to give sponsors real, measurable value — and fans
+                  genuinely useful offers in return.
+                </p>
+              )}
+            </div>
+            <div className="aspect-[4/3] rounded-[var(--radius)] overflow-hidden bg-ink-2 border border-[var(--line)]">
+              {branding.aboutImageDataUrl || branding.logoDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.aboutImageDataUrl || branding.logoDataUrl}
+                  alt={clubName}
+                  className={`w-full h-full ${branding.aboutImageDataUrl ? "object-cover" : "object-contain p-10"}`}
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center font-display font-bold text-4xl"
+                  style={{ color: accent }}
+                >
+                  {clubName.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Offers */}
       <section id="offers" className="max-w-5xl mx-auto px-6 py-16">
         <div className="kicker mb-2" style={{ color: accent }}>
@@ -173,47 +218,53 @@ export default function ClubLandingPage({
           <div className="grid sm:grid-cols-2 gap-5">
             {sponsors.map((sponsor) => (
               <div key={sponsor.id} className="card p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    {sponsor.logoDataUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={sponsor.logoDataUrl}
-                        alt={sponsor.name}
-                        className="h-10 w-10 rounded-lg object-cover bg-white/5"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-lg bg-ink-2 flex items-center justify-center text-xs font-semibold text-cream-dim">
-                        {sponsor.name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-semibold">{sponsor.name}</div>
-                      <span
-                        className="status-pill"
-                        style={{
-                          background: sponsor.tier === "principal" ? accent : "var(--ink-2)",
-                          color: sponsor.tier === "principal" ? "#05130a" : "var(--cream-dim)",
-                          border: sponsor.tier === "principal" ? "none" : "1px solid var(--line)",
-                        }}
-                      >
-                        {sponsor.tier === "principal" ? "Principal partner" : "Partner"}
-                      </span>
+                <div className="flex flex-col gap-3">
+                  {sponsor.logoDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sponsor.logoDataUrl}
+                      alt={sponsor.name}
+                      className="w-full h-20 object-contain object-left"
+                    />
+                  ) : (
+                    <div className="w-full h-20 flex items-center justify-start text-sm font-semibold text-cream-dim">
+                      {sponsor.name.slice(0, 2).toUpperCase()}
                     </div>
+                  )}
+                  <div>
+                    <div className="font-semibold">{sponsor.name}</div>
+                    <span
+                      className="status-pill"
+                      style={{
+                        background: sponsor.tier === "principal" ? accent : "var(--ink-2)",
+                        color: sponsor.tier === "principal" ? "#05130a" : "var(--cream-dim)",
+                        border: sponsor.tier === "principal" ? "none" : "1px solid var(--line)",
+                      }}
+                    >
+                      {sponsor.tier === "principal" ? "Principal partner" : "Partner"}
+                    </span>
                   </div>
                 </div>
                 <div>
-                  <div className="font-display font-semibold text-lg">{sponsor.offerTitle}</div>
-                  <p className="text-sm text-cream-dim mt-1">{sponsor.offerDescription}</p>
+                  {sponsor.offers.length === 0 ? (
+                    <p className="text-sm text-cream-dim">No offers added yet.</p>
+                  ) : sponsor.offers.length === 1 ? (
+                    <>
+                      <div className="font-display font-semibold text-lg">{sponsor.offers[0].title}</div>
+                      <p className="text-sm text-cream-dim mt-1">{sponsor.offers[0].description}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-cream-dim">{sponsor.offers.length} offers available</p>
+                  )}
                 </div>
                 <a
-                  href={mode === "live" ? `/api/go/${slug}/${sponsor.id}` : sponsor.linkUrl || "#"}
+                  href={mode === "live" ? `/clubs/${slug}/${sponsor.slug}` : sponsor.offers[0]?.linkUrl || "#"}
                   target={mode === "live" ? undefined : "_blank"}
                   rel="noreferrer"
-                  className="btn btn-outline self-start mt-auto"
+                  className="btn btn-outline btn-brand-hover self-start mt-auto"
                   style={{ borderRadius: btnRadius }}
                 >
-                  Claim this offer →
+                  {sponsor.offers.length > 1 ? "View offers →" : "View offer →"}
                 </a>
               </div>
             ))}
