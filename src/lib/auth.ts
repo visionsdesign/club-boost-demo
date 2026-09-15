@@ -58,3 +58,25 @@ export const SESSION_COOKIE_NAME = COOKIE_NAME;
 export function randomToken(bytes = 24): string {
   return crypto.randomBytes(bytes).toString("hex");
 }
+
+// Tracks which clubs a visitor has registered as a fan with, so their offer
+// links unlock without needing a full account. Not a security boundary (a
+// fan could tamper with their own cookie to skip registering) — it's a
+// marketing gate, not an auth check, so it's kept simple and unsigned.
+export const FAN_COOKIE_NAME = "cb_fan_clubs";
+
+export function parseFanClubs(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function isFanOfClub(slug: string): Promise<boolean> {
+  const store = await cookies();
+  const clubs = parseFanClubs(store.get(FAN_COOKIE_NAME)?.value);
+  return clubs.includes(slug);
+}

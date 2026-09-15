@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import type { Branding, Sponsor } from "@/lib/types";
+import { pageThemeVars } from "@/lib/theme";
+import FanJoinForm from "./FanJoinForm";
 
 export interface ClubLandingPageProps {
   slug: string;
   clubName: string;
   branding: Branding;
   sponsors: Sponsor[];
-  fansReached: number;
   mode: "live" | "preview";
+  isFan?: boolean;
 }
 
 function radiusFor(style: Branding["buttonStyle"]) {
@@ -21,47 +22,17 @@ export default function ClubLandingPage({
   clubName,
   branding,
   sponsors,
-  fansReached,
   mode,
+  isFan = false,
 }: ClubLandingPageProps) {
   const accent = branding.accentColor || "#c6ff3d";
   const btnText = branding.buttonTextColor || "#05130a";
   const btnRadius = radiusFor(branding.buttonStyle);
 
-  const [fanName, setFanName] = useState("");
-  const [fanEmail, setFanEmail] = useState("");
-  const [fanStatus, setFanStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-
-  async function submitFan(e: React.FormEvent) {
-    e.preventDefault();
-    if (mode !== "live") {
-      setFanStatus("done");
-      return;
-    }
-    setFanStatus("loading");
-    try {
-      const res = await fetch(`/api/fans/${slug}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fanName, email: fanEmail }),
-      });
-      if (!res.ok) throw new Error();
-      setFanStatus("done");
-    } catch {
-      setFanStatus("error");
-    }
-  }
-
-  const totalClicks = sponsors.reduce(
-    (sum, s) => sum + s.offers.reduce((oSum, o) => oSum + o.clicks, 0),
-    0
-  );
-  const totalOffers = sponsors.reduce((sum, s) => sum + s.offers.length, 0);
-
   return (
     <div
       className="min-h-full bg-ink text-cream"
-      style={{ ["--club-accent" as string]: accent }}
+      style={{ ["--club-accent" as string]: accent, ...pageThemeVars(branding.pageBackground) }}
     >
       {/* Nav */}
       <header className="border-b border-[var(--line)]">
@@ -99,7 +70,10 @@ export default function ClubLandingPage({
         style={
           branding.heroImageDataUrl
             ? {
-                backgroundImage: `linear-gradient(180deg, rgba(10,20,16,0.55), rgba(10,20,16,0.92)), url(${branding.heroImageDataUrl})`,
+                backgroundImage:
+                  branding.pageBackground === "light"
+                    ? `linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.92)), url(${branding.heroImageDataUrl})`
+                    : `linear-gradient(180deg, rgba(10,10,11,0.55), rgba(10,10,11,0.92)), url(${branding.heroImageDataUrl})`,
               }
             : undefined
         }
@@ -132,30 +106,6 @@ export default function ClubLandingPage({
             >
               Join the club list
             </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats strip */}
-      <section className="border-b border-[var(--line)]">
-        <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-3 gap-6 text-center">
-          <div>
-            <div className="text-2xl sm:text-3xl font-display font-bold" style={{ color: accent }}>
-              {totalOffers}
-            </div>
-            <div className="text-xs text-cream-dim mt-1 uppercase tracking-wide">Live partner offers</div>
-          </div>
-          <div>
-            <div className="text-2xl sm:text-3xl font-display font-bold" style={{ color: accent }}>
-              {fansReached}
-            </div>
-            <div className="text-xs text-cream-dim mt-1 uppercase tracking-wide">Fans reached</div>
-          </div>
-          <div>
-            <div className="text-2xl sm:text-3xl font-display font-bold" style={{ color: accent }}>
-              {totalClicks}
-            </div>
-            <div className="text-xs text-cream-dim mt-1 uppercase tracking-wide">Tracked clicks</div>
           </div>
         </div>
       </section>
@@ -275,52 +225,41 @@ export default function ClubLandingPage({
       {/* Fan signup */}
       <section id="join" className="border-t border-[var(--line)] bg-surface/40">
         <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-          <h2 className="font-display font-bold text-2xl sm:text-3xl">Join the {clubName} fan list.</h2>
-          <p className="text-cream-dim mt-3">
-            Register once with Club Boost to unlock every current and future partner offer — and go into the
-            club&apos;s prize pot draw.
-          </p>
-
-          {fanStatus === "done" ? (
-            <div className="card mt-8 p-6 text-left">
-              <div className="font-semibold" style={{ color: accent }}>
-                You&apos;re on the list.
-              </div>
-              <p className="text-sm text-cream-dim mt-1">
-                {mode === "live"
-                  ? "We've logged your details — Club Boost will be in touch with fresh offers."
-                  : "This is a preview — signups aren't saved here."}
+          {isFan ? (
+            <>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl">You&apos;re on the list.</h2>
+              <p className="text-cream-dim mt-3">
+                Every {clubName} partner offer is unlocked — just visit any partner&apos;s page above and claim
+                it.
               </p>
-            </div>
+              <div className="mt-8 card p-6 max-w-md mx-auto text-left">
+                <div className="font-semibold" style={{ color: accent }}>
+                  ✓ Offers unlocked
+                </div>
+                <p className="text-sm text-cream-dim mt-1">
+                  We recognise this browser as a registered {clubName} fan.
+                </p>
+              </div>
+            </>
           ) : (
-            <form onSubmit={submitFan} className="mt-8 grid sm:grid-cols-[1fr_1fr_auto] gap-3 text-left">
-              <input
-                required
-                placeholder="Full name"
-                value={fanName}
-                onChange={(e) => setFanName(e.target.value)}
-                className="field-input"
-              />
-              <input
-                required
-                type="email"
-                placeholder="Email address"
-                value={fanEmail}
-                onChange={(e) => setFanEmail(e.target.value)}
-                className="field-input"
-              />
-              <button
-                type="submit"
-                disabled={fanStatus === "loading"}
-                className="btn"
-                style={{ background: accent, color: btnText, borderRadius: btnRadius }}
-              >
-                {fanStatus === "loading" ? "Joining…" : "Join"}
-              </button>
-            </form>
-          )}
-          {fanStatus === "error" && (
-            <p className="text-coral text-sm mt-3">Something went wrong — please try again.</p>
+            <>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl">Join the {clubName} fan list.</h2>
+              <p className="text-cream-dim mt-3">
+                Register once with Club Boost to unlock every current and future partner offer — and go into
+                the club&apos;s prize pot draw.
+              </p>
+
+              <div className="mt-8">
+                <FanJoinForm
+                  slug={slug}
+                  mode={mode}
+                  accent={accent}
+                  btnText={btnText}
+                  btnRadius={btnRadius}
+                  doneMessage="We've logged your details — your partner offers are unlocked, just visit any partner's page."
+                />
+              </div>
+            </>
           )}
         </div>
       </section>

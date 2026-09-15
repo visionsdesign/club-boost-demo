@@ -29,11 +29,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     accentColor: accentColor || club.branding.accentColor,
     buttonTextColor: club.branding.buttonTextColor,
     buttonStyle: buttonStyle === "square" ? "square" : "round",
+    pageBackground: club.branding.pageBackground === "light" ? "light" : "dark",
     heroHeading: heroHeading || club.branding.heroHeading,
     tagline: tagline || club.branding.tagline,
     ctaText: ctaText || club.branding.ctaText,
     logoDataUrl: club.branding.logoDataUrl,
     heroImageDataUrl: club.branding.heroImageDataUrl,
+    aboutHtml: club.branding.aboutHtml,
+    aboutImageDataUrl: club.branding.aboutImageDataUrl,
   };
 
   await writeDb(db);

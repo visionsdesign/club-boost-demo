@@ -53,6 +53,7 @@ function seedData(): { admins: Admin[]; clubs: Club[] } {
           accentColor: "#1c64f2",
           buttonTextColor: "#ffffff",
           buttonStyle: "round",
+          pageBackground: "dark",
           heroHeading: "Your fans are worth more than a logo on a shirt.",
           tagline:
             "Chester FC has teamed up with Club Boost to turn our sponsors into real deals for our supporters — and give our partners the proof they've earned.",
@@ -153,6 +154,9 @@ function normalizeClub(club: Club): Club {
   if (!Array.isArray(club.fanSignups)) club.fanSignups = [];
   if (!Array.isArray(club.sponsors)) club.sponsors = [];
   if (!club.branding.buttonTextColor) club.branding.buttonTextColor = "#05130a";
+  if (club.branding.pageBackground !== "light" && club.branding.pageBackground !== "dark") {
+    club.branding.pageBackground = "dark";
+  }
 
   club.sponsors = club.sponsors.map(migrateLegacySponsor);
 
@@ -325,9 +329,13 @@ export async function writeDb(db: DB): Promise<void> {
 // silently dropping the other's write. These do the mutation as a single
 // atomic SQL statement instead, computed from the row's current value.
 
-export async function appendFanSignup(
+// Inserts a new fan, or — if this email already registered with this club
+// before (e.g. from before passwords existed) — updates that record in place
+// instead of creating a duplicate. Atomic for the same concurrency reason as
+// recordOfferClick below.
+export async function upsertFanSignup(
   slug: string,
-  fan: { id: string; name: string; email: string; createdAt: string }
+  fan: { id: string; name: string; email: string; passwordHash: string; createdAt: string }
 ): Promise<boolean> {
   await ensureInitialized();
   const client = sql();
@@ -336,7 +344,21 @@ export async function appendFanSignup(
     SET data = jsonb_set(
       data,
       '{fanSignups}',
-      COALESCE(data->'fanSignups', '[]'::jsonb) || ${JSON.stringify(fan)}::jsonb
+      CASE WHEN EXISTS (
+        SELECT 1 FROM jsonb_array_elements(COALESCE(data->'fanSignups', '[]'::jsonb)) AS f
+        WHERE lower(f->>'email') = lower(${fan.email}::text)
+      )
+      THEN (
+        SELECT jsonb_agg(
+          CASE WHEN lower(f->>'email') = lower(${fan.email}::text)
+            THEN f || jsonb_build_object('name', ${fan.name}::text, 'passwordHash', ${fan.passwordHash}::text)
+            ELSE f
+          END
+        )
+        FROM jsonb_array_elements(data->'fanSignups') AS f
+      )
+      ELSE COALESCE(data->'fanSignups', '[]'::jsonb) || ${JSON.stringify(fan)}::jsonb
+      END
     )
     WHERE slug = ${slug}
     RETURNING id
@@ -429,6 +451,11 @@ export function findSponsorBySlug(club: Club, sponsorSlug: string): Sponsor | un
   return club.sponsors.find((s) => s.slug === sponsorSlug);
 }
 
+export function findFanByEmail(club: Club, email: string) {
+  const lower = email.toLowerCase();
+  return club.fanSignups.find((f) => f.email.toLowerCase() === lower);
+}
+
 export function uniqueSponsorSlug(taken: Set<string>, base: string): string {
   let slug = slugify(base) || "partner";
   let n = 2;
@@ -465,6 +492,7 @@ export function applyBrandingUpdate(club: Club, payload: BrandingUpdatePayload):
       ? payload.branding.buttonTextColor
       : club.branding.buttonTextColor,
     buttonStyle: payload.branding.buttonStyle === "square" ? "square" : "round",
+    pageBackground: payload.branding.pageBackground === "light" ? "light" : "dark",
     heroHeading: payload.branding.heroHeading || club.branding.heroHeading,
     tagline: payload.branding.tagline || club.branding.tagline,
     ctaText: payload.branding.ctaText || club.branding.ctaText,

@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       accentColor: "#c6ff3d",
       buttonTextColor: "#05130a",
       buttonStyle: "round",
+      pageBackground: "dark",
       heroHeading: `${clubName} × Club Boost`,
       tagline: "We're setting up our fan offers — check back soon.",
       ctaText: "Get our fan offers",

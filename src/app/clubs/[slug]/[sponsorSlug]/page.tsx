@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { readDb, findClubBySlug, findSponsorBySlug } from "@/lib/db";
+import { isFanOfClub } from "@/lib/auth";
+import { pageThemeVars } from "@/lib/theme";
+import FanJoinForm from "@/components/FanJoinForm";
 
 function radiusFor(style: "round" | "square") {
   return style === "square" ? "10px" : "100px";
@@ -34,12 +37,14 @@ export default async function SponsorPage({
   const sponsor = findSponsorBySlug(club, sponsorSlug);
   if (!sponsor) notFound();
 
+  const unlocked = await isFanOfClub(slug);
+
   const accent = club.branding.accentColor || "#c6ff3d";
   const btnText = club.branding.buttonTextColor || "#05130a";
   const btnRadius = radiusFor(club.branding.buttonStyle);
 
   return (
-    <div className="min-h-full bg-ink text-cream">
+    <div className="min-h-full bg-ink text-cream" style={pageThemeVars(club.branding.pageBackground)}>
       <header className="border-b border-[var(--line)]">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
           <Link href={`/clubs/${slug}`} className="flex items-center gap-3">
@@ -71,16 +76,16 @@ export default async function SponsorPage({
           {sponsor.tier === "principal" ? "Principal partner" : "Partner"} · {club.clubName}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4">
           {sponsor.logoDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={sponsor.logoDataUrl}
               alt={sponsor.name}
-              className="h-16 w-16 rounded-xl object-cover bg-white/5"
+              className="w-full h-24 object-contain object-left"
             />
           ) : (
-            <div className="h-16 w-16 rounded-xl bg-ink-2 flex items-center justify-center text-lg font-semibold text-cream-dim">
+            <div className="w-full h-24 flex items-center justify-start text-lg font-semibold text-cream-dim">
               {sponsor.name.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -125,13 +130,27 @@ export default async function SponsorPage({
                 <div key={offer.id} className="card p-8">
                   <div className="font-display font-bold text-2xl sm:text-3xl leading-snug">{offer.title}</div>
                   <p className="text-cream-dim mt-4 text-lg leading-relaxed">{offer.description}</p>
-                  <a
-                    href={`/api/go/${slug}/${sponsor.id}/${offer.id}`}
-                    className="btn mt-8"
-                    style={{ background: accent, color: btnText, borderRadius: btnRadius }}
-                  >
-                    Claim this offer →
-                  </a>
+                  {unlocked ? (
+                    <a
+                      href={`/api/go/${slug}/${sponsor.id}/${offer.id}`}
+                      className="btn mt-8"
+                      style={{ background: accent, color: btnText, borderRadius: btnRadius }}
+                    >
+                      Claim this offer →
+                    </a>
+                  ) : (
+                    <span
+                      className="btn mt-8 opacity-60 cursor-not-allowed select-none"
+                      style={{
+                        background: "transparent",
+                        color: "var(--cream-dim)",
+                        border: "1px dashed var(--line)",
+                        borderRadius: btnRadius,
+                      }}
+                    >
+                      🔒 Sign in to unlock
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -141,6 +160,28 @@ export default async function SponsorPage({
             partnership is worth.
           </p>
         </div>
+
+        {!unlocked && sponsor.offers.length > 0 && (
+          <div className="card p-8">
+            <div className="font-display font-bold text-xl sm:text-2xl">
+              Register with {club.clubName} to unlock this offer.
+            </div>
+            <p className="text-cream-dim mt-2 text-sm">
+              It takes a few seconds, and unlocks every current and future partner offer from{" "}
+              {club.clubName} — not just this one.
+            </p>
+            <div className="mt-6">
+              <FanJoinForm
+                slug={slug}
+                mode="live"
+                accent={accent}
+                btnText={btnText}
+                btnRadius={btnRadius}
+                doneMessage="You're on the list — this offer is unlocked now."
+              />
+            </div>
+          </div>
+        )}
 
         <div className="text-center">
           <Link href={`/clubs/${slug}#offers`} className="text-sm hover:underline" style={{ color: accent }}>

@@ -1,30 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { upsertFanSignup } from "@/lib/db";
+import { readDb, findClubBySlug, findFanByEmail } from "@/lib/db";
 import { FAN_COOKIE_NAME, parseFanClubs } from "@/lib/auth";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { name, email, password } = await req.json();
+  const { email, password } = await req.json();
 
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: "Name, email and password are required." }, { status: 400 });
-  }
-  if (String(password).length < 6) {
-    return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+  if (!email || !password) {
+    return NextResponse.json({ error: "Enter your email and password." }, { status: 400 });
   }
 
-  const ok = await upsertFanSignup(slug, {
-    id: `fan-${Date.now()}-${Math.round(Math.random() * 1000)}`,
-    name,
-    email,
-    passwordHash: bcrypt.hashSync(String(password), 10),
-    createdAt: new Date().toISOString(),
-  });
-
-  if (!ok) {
+  const db = await readDb();
+  const club = findClubBySlug(db, slug);
+  if (!club) {
     return NextResponse.json({ error: "Club not found." }, { status: 404 });
   }
+
+  const fan = findFanByEmail(club, String(email));
+  const invalid = () =>
+    NextResponse.json(
+      { error: "Incorrect email or password — or you registered before passwords existed. Register below to set one." },
+      { status: 401 }
+    );
+
+  if (!fan || !fan.passwordHash) return invalid();
+  if (!bcrypt.compareSync(String(password), fan.passwordHash)) return invalid();
 
   const res = NextResponse.json({ ok: true });
   const clubs = parseFanClubs(req.cookies.get(FAN_COOKIE_NAME)?.value);

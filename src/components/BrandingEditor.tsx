@@ -305,6 +305,29 @@ export default function BrandingEditor({
               </button>
             </div>
           </div>
+
+          <div>
+            <label className="field-label">Page background</label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => updateBranding("pageBackground", "dark")}
+                className={`btn btn-outline text-sm ${branding.pageBackground === "dark" ? "border-lime! text-lime" : ""}`}
+              >
+                ⬤ Black
+              </button>
+              <button
+                type="button"
+                onClick={() => updateBranding("pageBackground", "light")}
+                className={`btn btn-outline text-sm ${branding.pageBackground === "light" ? "border-lime! text-lime" : ""}`}
+              >
+                ⚪ White
+              </button>
+            </div>
+            <p className="text-xs text-cream-dim mt-2">
+              Applies to your club page and every partner page.
+            </p>
+          </div>
         </div>
 
         <div className="card p-5 space-y-4">
@@ -601,7 +624,6 @@ export default function BrandingEditor({
               clubName={clubName}
               branding={branding}
               sponsors={sponsors}
-              fansReached={fansReached}
               mode="preview"
             />
           </div>

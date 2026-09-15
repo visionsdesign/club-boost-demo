@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { readDb, findClubBySlug } from "@/lib/db";
+import { isFanOfClub } from "@/lib/auth";
 import ClubLandingPage from "@/components/ClubLandingPage";
 import type { Metadata } from "next";
 
@@ -37,14 +38,16 @@ export default async function PublicClubPage({ params }: { params: Promise<{ slu
     );
   }
 
+  const isFan = await isFanOfClub(club.slug);
+
   return (
     <ClubLandingPage
       slug={club.slug}
       clubName={club.clubName}
       branding={club.branding}
       sponsors={club.sponsors}
-      fansReached={club.fanSignups.length}
       mode="live"
+      isFan={isFan}
     />
   );
 }

@@ -27,6 +27,7 @@ export interface Branding {
   accentColor: string;
   buttonTextColor: string;
   buttonStyle: "round" | "square";
+  pageBackground: "dark" | "light";
   heroHeading: string;
   tagline: string;
   ctaText: string;
@@ -38,6 +39,7 @@ export interface FanSignup {
   id: string;
   name: string;
   email: string;
+  passwordHash?: string;
   createdAt: string;
 }
 
