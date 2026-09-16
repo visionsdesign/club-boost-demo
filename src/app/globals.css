@@ -28,6 +28,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -40,6 +41,7 @@ body {
   background: var(--ink);
   color: var(--cream);
   font-family: var(--font-sora), sans-serif;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4 {
