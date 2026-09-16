@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ClubLandingPage from "./ClubLandingPage";
 import RichTextEditor from "./RichTextEditor";
-import type { Branding, Sponsor, SponsorOffer } from "@/lib/types";
+import type { Branding, Sponsor, SponsorOffer, OtherSponsorLogo } from "@/lib/types";
 
 export interface BrandingEditorProps {
   clubId: string;
@@ -49,6 +49,15 @@ function newOffer(): SponsorOffer {
     description: "",
     linkUrl: "",
     clicks: 0,
+  };
+}
+
+function newOtherSponsorLogo(): OtherSponsorLogo {
+  return {
+    id: `new-${Math.random().toString(36).slice(2)}`,
+    name: "",
+    logoDataUrl: "",
+    linkUrl: "",
   };
 }
 
@@ -144,6 +153,38 @@ export default function BrandingEditor({
     if (!file) return;
     const dataUrl = await fileToDataUrl(file);
     updateSponsor(id, { bannerImageDataUrl: dataUrl });
+  }
+
+  function addOtherSponsorLogo() {
+    setBranding((b) => ({
+      ...b,
+      otherSponsorLogos: [...(b.otherSponsorLogos || []), newOtherSponsorLogo()],
+    }));
+    setSaved(false);
+  }
+
+  function updateOtherSponsorLogo(id: string, patch: Partial<OtherSponsorLogo>) {
+    setBranding((b) => ({
+      ...b,
+      otherSponsorLogos: (b.otherSponsorLogos || []).map((logo) =>
+        logo.id === id ? { ...logo, ...patch } : logo
+      ),
+    }));
+    setSaved(false);
+  }
+
+  function removeOtherSponsorLogo(id: string) {
+    setBranding((b) => ({
+      ...b,
+      otherSponsorLogos: (b.otherSponsorLogos || []).filter((logo) => logo.id !== id),
+    }));
+    setSaved(false);
+  }
+
+  async function handleOtherSponsorLogoUpload(id: string, file: File | null) {
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    updateOtherSponsorLogo(id, { logoDataUrl: dataUrl });
   }
 
   async function save() {
@@ -570,6 +611,76 @@ export default function BrandingEditor({
                     className="text-coral text-xs hover:underline"
                   >
                     Remove sponsor
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="kicker">Our other sponsors</div>
+            <button
+              type="button"
+              onClick={addOtherSponsorLogo}
+              className="text-xs text-lime hover:underline"
+            >
+              + Add logo
+            </button>
+          </div>
+          <p className="text-xs text-cream-dim -mt-2">
+            A rotating strip of extra sponsor logos shown below your main offers, titled &quot;Our other
+            sponsors&quot;. These don&apos;t carry offers of their own.
+          </p>
+
+          {(branding.otherSponsorLogos || []).length === 0 && (
+            <p className="text-sm text-cream-dim">No logos yet — add one below.</p>
+          )}
+
+          <div className="space-y-3">
+            {(branding.otherSponsorLogos || []).map((logo) => (
+              <div key={logo.id} className="rounded-lg border border-[var(--line)] p-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  {logo.logoDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logo.logoDataUrl}
+                      alt=""
+                      className="h-9 w-16 rounded-md object-contain bg-ink-2 border border-[var(--line)]"
+                    />
+                  ) : (
+                    <div className="h-9 w-16 rounded-md bg-ink-2 border border-[var(--line)]" />
+                  )}
+                  <label className="text-xs text-lime cursor-pointer hover:underline">
+                    Upload logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleOtherSponsorLogoUpload(logo.id, e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+                <input
+                  className="field-input"
+                  placeholder="Sponsor name"
+                  value={logo.name}
+                  onChange={(e) => updateOtherSponsorLogo(logo.id, { name: e.target.value })}
+                />
+                <input
+                  className="field-input"
+                  placeholder="Link (optional, https://…)"
+                  value={logo.linkUrl || ""}
+                  onChange={(e) => updateOtherSponsorLogo(logo.id, { linkUrl: e.target.value })}
+                />
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => removeOtherSponsorLogo(logo.id)}
+                    className="text-coral text-xs hover:underline"
+                  >
+                    Remove
                   </button>
                 </div>
               </div>

@@ -24,6 +24,11 @@ function seededClickEvents(counts: Record<string, number>, days = 14): ClickEven
   return events.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+function placeholderLogoSvg(label: string, bg: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80"><rect width="240" height="80" rx="10" fill="${bg}"/><text x="120" y="46" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff" text-anchor="middle">${label}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 function seedData(): { admins: Admin[]; clubs: Club[] } {
   const now = new Date().toISOString();
   return {
@@ -60,6 +65,20 @@ function seedData(): { admins: Admin[]; clubs: Club[] } {
           ctaText: "Get our fan offers",
           aboutHtml:
             "<p>Chester FC is a proud non-league football club with deep roots in the local community. We're teaming up with Club Boost to give our sponsors real, measurable value — and our fans genuinely useful offers in return.</p>",
+          otherSponsorLogos: [
+            { id: "other-1", name: "Chester Deli", logoDataUrl: placeholderLogoSvg("Chester Deli", "#1c64f2") },
+            {
+              id: "other-2",
+              name: "Northgate Motors",
+              logoDataUrl: placeholderLogoSvg("Northgate Motors", "#0f766e"),
+            },
+            {
+              id: "other-3",
+              name: "Riverside Physio",
+              logoDataUrl: placeholderLogoSvg("Riverside Physio", "#7c3aed"),
+            },
+            { id: "other-4", name: "Deva Brewery", logoDataUrl: placeholderLogoSvg("Deva Brewery", "#b45309") },
+          ],
         },
         sponsors: [
           {
@@ -157,6 +176,7 @@ function normalizeClub(club: Club): Club {
   if (club.branding.pageBackground !== "light" && club.branding.pageBackground !== "dark") {
     club.branding.pageBackground = "dark";
   }
+  if (!Array.isArray(club.branding.otherSponsorLogos)) club.branding.otherSponsorLogos = [];
 
   club.sponsors = club.sponsors.map(migrateLegacySponsor);
 
@@ -498,6 +518,14 @@ export function applyBrandingUpdate(club: Club, payload: BrandingUpdatePayload):
     ctaText: payload.branding.ctaText || club.branding.ctaText,
     aboutHtml: payload.branding.aboutHtml,
     aboutImageDataUrl: payload.branding.aboutImageDataUrl,
+    otherSponsorLogos: (payload.branding.otherSponsorLogos || [])
+      .filter((logo) => logo.logoDataUrl)
+      .map((logo) => ({
+        id: logo.id && !logo.id.startsWith("new-") ? logo.id : `logo-${crypto.randomBytes(6).toString("hex")}`,
+        name: logo.name || "",
+        logoDataUrl: logo.logoDataUrl,
+        linkUrl: logo.linkUrl,
+      })),
   };
 
   const existingById = new Map(club.sponsors.map((s) => [s.id, s]));

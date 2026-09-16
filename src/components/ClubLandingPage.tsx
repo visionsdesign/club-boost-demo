@@ -79,7 +79,7 @@ export default function ClubLandingPage({
         }
       >
         <div className="max-w-5xl mx-auto px-6 py-16 sm:py-24 text-center">
-          <div className="kicker mb-4" style={{ color: accent }}>
+          <div className="kicker mb-4" style={{ color: "var(--cream)" }}>
             {clubName} fan offers
           </div>
           <h1 className="font-display font-extrabold text-3xl sm:text-5xl leading-tight max-w-3xl mx-auto">
@@ -157,7 +157,7 @@ export default function ClubLandingPage({
           Official partners
         </div>
         <h2 className="font-display font-bold text-2xl sm:text-3xl mb-8">
-          Every deal here is tracked — so {clubName} can prove what it&apos;s worth.
+          Exclusive offers from {clubName}&apos;s official partners.
         </h2>
 
         {sponsors.length === 0 ? (
@@ -166,61 +166,104 @@ export default function ClubLandingPage({
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-5">
-            {sponsors.map((sponsor) => (
-              <div key={sponsor.id} className="card p-6 flex flex-col gap-4">
-                <div className="flex flex-col gap-3">
-                  {sponsor.logoDataUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={sponsor.logoDataUrl}
-                      alt={sponsor.name}
-                      className="w-full h-20 object-contain object-left"
-                    />
-                  ) : (
-                    <div className="w-full h-20 flex items-center justify-start text-sm font-semibold text-cream-dim">
-                      {sponsor.name.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div className="font-semibold">{sponsor.name}</div>
-                    <span
-                      className="status-pill"
-                      style={{
-                        background: sponsor.tier === "principal" ? accent : "var(--ink-2)",
-                        color: sponsor.tier === "principal" ? "#05130a" : "var(--cream-dim)",
-                        border: sponsor.tier === "principal" ? "none" : "1px solid var(--line)",
-                      }}
-                    >
-                      {sponsor.tier === "principal" ? "Principal partner" : "Partner"}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  {sponsor.offers.length === 0 ? (
-                    <p className="text-sm text-cream-dim">No offers added yet.</p>
-                  ) : sponsor.offers.length === 1 ? (
-                    <>
-                      <div className="font-display font-semibold text-lg">{sponsor.offers[0].title}</div>
-                      <p className="text-sm text-cream-dim mt-1">{sponsor.offers[0].description}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-cream-dim">{sponsor.offers.length} offers available</p>
-                  )}
-                </div>
-                <a
-                  href={mode === "live" ? `/clubs/${slug}/${sponsor.slug}` : sponsor.offers[0]?.linkUrl || "#"}
-                  target={mode === "live" ? undefined : "_blank"}
-                  rel="noreferrer"
-                  className="btn btn-outline btn-brand-hover self-start mt-auto"
-                  style={{ borderRadius: btnRadius }}
+            {sponsors.map((sponsor) => {
+              const isPrincipal = sponsor.tier === "principal";
+              return (
+                <div
+                  key={sponsor.id}
+                  className={`card p-6 pt-8 flex flex-col gap-4 relative ${
+                    isPrincipal ? "sm:col-span-2 items-center text-center mb-3" : ""
+                  }`}
+                  style={isPrincipal ? { borderColor: accent } : undefined}
                 >
-                  {sponsor.offers.length > 1 ? "View offers →" : "View offer →"}
-                </a>
-              </div>
-            ))}
+                  <span
+                    className="status-pill absolute -top-3 left-1/2 -translate-x-1/2 z-10"
+                    style={
+                      isPrincipal
+                        ? { background: accent, color: "#05130a", border: "none" }
+                        : { background: "var(--ink-2)", color: "var(--cream-dim)", border: "1px solid var(--line)" }
+                    }
+                  >
+                    {isPrincipal ? "Principal partner" : "Partner"}
+                  </span>
+                  <div className={`flex flex-col gap-3 ${isPrincipal ? "items-center text-center" : ""}`}>
+                    {sponsor.logoDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={sponsor.logoDataUrl}
+                        alt={sponsor.name}
+                        className={`w-full h-20 object-contain ${isPrincipal ? "object-center" : "object-left"}`}
+                      />
+                    ) : (
+                      <div
+                        className={`w-full h-20 flex items-center text-sm font-semibold text-cream-dim ${
+                          isPrincipal ? "justify-center" : "justify-start"
+                        }`}
+                      >
+                        {sponsor.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="font-semibold">{sponsor.name}</div>
+                  </div>
+                  <div>
+                    {sponsor.offers.length === 0 ? (
+                      <p className="text-sm text-cream-dim">No offers added yet.</p>
+                    ) : sponsor.offers.length === 1 ? (
+                      <>
+                        <div className="font-display font-semibold text-lg">{sponsor.offers[0].title}</div>
+                        <p className="text-sm text-cream-dim mt-1">{sponsor.offers[0].description}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-cream-dim">{sponsor.offers.length} offers available</p>
+                    )}
+                  </div>
+                  <a
+                    href={mode === "live" ? `/clubs/${slug}/${sponsor.slug}` : sponsor.offers[0]?.linkUrl || "#"}
+                    target={mode === "live" ? undefined : "_blank"}
+                    rel="noreferrer"
+                    className={`btn btn-outline btn-brand-hover mt-auto ${isPrincipal ? "self-center" : "self-start"}`}
+                    style={{ borderRadius: btnRadius }}
+                  >
+                    {sponsor.offers.length > 1 ? "View offers →" : "View offer →"}
+                  </a>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
+
+      {/* Other sponsors */}
+      {branding.otherSponsorLogos && branding.otherSponsorLogos.length > 0 && (
+        <section className="border-t border-[var(--line)] py-14 overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="kicker mb-8 text-center" style={{ color: "var(--cream)" }}>
+              Our other sponsors
+            </div>
+          </div>
+          <div className="logo-marquee">
+            <div className="logo-marquee-track">
+              {[...branding.otherSponsorLogos, ...branding.otherSponsorLogos].map((logo, i) => {
+                const img = (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logo.logoDataUrl} alt={logo.name} />
+                );
+                return (
+                  <div className="logo-marquee-item" key={`${logo.id}-${i}`}>
+                    {logo.linkUrl ? (
+                      <a href={logo.linkUrl} target="_blank" rel="noreferrer">
+                        {img}
+                      </a>
+                    ) : (
+                      img
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Fan signup */}
       <section id="join" className="border-t border-[var(--line)] bg-surface/40">

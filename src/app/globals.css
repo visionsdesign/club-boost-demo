@@ -131,6 +131,52 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
 }
 
+.logo-marquee {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+.logo-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 3.5rem;
+  width: max-content;
+  animation: logo-marquee-scroll 26s linear infinite;
+}
+.logo-marquee-item {
+  flex: 0 0 auto;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+.logo-marquee-item img {
+  height: 100%;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  opacity: 0.8;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+.logo-marquee-item img:hover {
+  opacity: 1;
+  filter: grayscale(0);
+}
+@keyframes logo-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-marquee-track {
+    animation: none;
+  }
+}
+
 .prose-info p {
   margin: 0 0 0.9em;
 }

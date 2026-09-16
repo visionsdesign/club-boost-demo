@@ -21,6 +21,13 @@ export interface Sponsor {
   offers: SponsorOffer[];
 }
 
+export interface OtherSponsorLogo {
+  id: string;
+  name: string;
+  logoDataUrl: string;
+  linkUrl?: string;
+}
+
 export interface Branding {
   logoDataUrl?: string;
   heroImageDataUrl?: string;
@@ -33,6 +40,7 @@ export interface Branding {
   ctaText: string;
   aboutHtml?: string;
   aboutImageDataUrl?: string;
+  otherSponsorLogos?: OtherSponsorLogo[];
 }
 
 export interface FanSignup {
