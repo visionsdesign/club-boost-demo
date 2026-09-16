@@ -167,65 +167,87 @@ export default function ClubLandingPage({
         ) : (
           <div className="grid sm:grid-cols-2 gap-5">
             {sponsors.map((sponsor) => {
-              const isPrincipal = sponsor.tier === "principal";
-              return (
-                <div
-                  key={sponsor.id}
-                  className={`card p-6 pt-8 flex flex-col gap-4 relative ${
-                    isPrincipal ? "sm:col-span-2 items-center text-center mb-3" : ""
-                  }`}
-                  style={isPrincipal ? { borderColor: accent } : undefined}
+              const viewLink = (
+                <a
+                  href={mode === "live" ? `/clubs/${slug}/${sponsor.slug}` : sponsor.offers[0]?.linkUrl || "#"}
+                  target={mode === "live" ? undefined : "_blank"}
+                  rel="noreferrer"
+                  className="btn btn-outline btn-brand-hover self-start"
+                  style={{ borderRadius: btnRadius }}
                 >
-                  <span
-                    className="status-pill absolute -top-3 left-1/2 -translate-x-1/2 z-10"
-                    style={
-                      isPrincipal
-                        ? { background: accent, color: "#05130a", border: "none" }
-                        : { background: "var(--ink-2)", color: "var(--cream-dim)", border: "1px solid var(--line)" }
-                    }
+                  {sponsor.offers.length > 1 ? "View offers →" : "View offer →"}
+                </a>
+              );
+
+              if (sponsor.tier === "principal") {
+                return (
+                  <div
+                    key={sponsor.id}
+                    className="card p-6 pt-8 relative sm:col-span-2 mb-3 flex flex-col sm:flex-row items-center gap-6"
+                    style={{ borderColor: accent }}
                   >
-                    {isPrincipal ? "Principal partner" : "Partner"}
-                  </span>
-                  <div className={`flex flex-col gap-3 ${isPrincipal ? "items-center text-center" : ""}`}>
+                    <span
+                      className="status-pill absolute -top-3 left-1/2 -translate-x-1/2 z-10"
+                      style={{ background: accent, color: "#05130a", border: "none" }}
+                    >
+                      Principal partner
+                    </span>
                     {sponsor.logoDataUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={sponsor.logoDataUrl}
                         alt={sponsor.name}
-                        className={`w-full h-20 object-contain ${isPrincipal ? "object-center" : "object-left"}`}
+                        className="w-full sm:w-1/2 h-36 object-contain flex-shrink-0"
                       />
                     ) : (
-                      <div
-                        className={`w-full h-20 flex items-center text-sm font-semibold text-cream-dim ${
-                          isPrincipal ? "justify-center" : "justify-start"
-                        }`}
-                      >
+                      <div className="w-full sm:w-1/2 h-36 flex items-center justify-center text-lg font-semibold text-cream-dim flex-shrink-0">
+                        {sponsor.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="w-full sm:w-1/2 flex flex-col items-start gap-3 text-left">
+                      <div className="font-semibold text-lg">{sponsor.name}</div>
+                      {sponsor.offers.length === 0 ? (
+                        <p className="text-sm text-cream-dim">No offers added yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {sponsor.offers.map((offer) => (
+                            <div key={offer.id}>
+                              <div className="font-display font-semibold text-lg">{offer.title}</div>
+                              <p className="text-sm text-cream-dim mt-1">{offer.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {viewLink}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={sponsor.id} className="card p-6 pt-8 flex flex-col gap-4 relative">
+                  <span
+                    className="status-pill absolute -top-3 left-1/2 -translate-x-1/2 z-10"
+                    style={{ background: "var(--ink-2)", color: "var(--cream-dim)", border: "1px solid var(--line)" }}
+                  >
+                    Partner
+                  </span>
+                  <div className="flex flex-col gap-3">
+                    {sponsor.logoDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={sponsor.logoDataUrl}
+                        alt={sponsor.name}
+                        className="w-full h-20 object-contain object-left"
+                      />
+                    ) : (
+                      <div className="w-full h-20 flex items-center justify-start text-sm font-semibold text-cream-dim">
                         {sponsor.name.slice(0, 2).toUpperCase()}
                       </div>
                     )}
                     <div className="font-semibold">{sponsor.name}</div>
                   </div>
-                  <div>
-                    {sponsor.offers.length === 0 ? (
-                      <p className="text-sm text-cream-dim">No offers added yet.</p>
-                    ) : sponsor.offers.length === 1 ? (
-                      <>
-                        <div className="font-display font-semibold text-lg">{sponsor.offers[0].title}</div>
-                        <p className="text-sm text-cream-dim mt-1">{sponsor.offers[0].description}</p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-cream-dim">{sponsor.offers.length} offers available</p>
-                    )}
-                  </div>
-                  <a
-                    href={mode === "live" ? `/clubs/${slug}/${sponsor.slug}` : sponsor.offers[0]?.linkUrl || "#"}
-                    target={mode === "live" ? undefined : "_blank"}
-                    rel="noreferrer"
-                    className={`btn btn-outline btn-brand-hover mt-auto ${isPrincipal ? "self-center" : "self-start"}`}
-                    style={{ borderRadius: btnRadius }}
-                  >
-                    {sponsor.offers.length > 1 ? "View offers →" : "View offer →"}
-                  </a>
+                  <div className="mt-auto">{viewLink}</div>
                 </div>
               );
             })}
