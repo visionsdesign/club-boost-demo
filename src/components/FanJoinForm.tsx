@@ -32,8 +32,9 @@ export default function FanJoinForm({
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  function toggleAuthMode() {
-    setAuthMode((m) => (m === "join" ? "login" : "join"));
+  function switchTo(next: AuthMode) {
+    if (next === authMode) return;
+    setAuthMode(next);
     setStatus("idle");
     setError(null);
   }
@@ -65,10 +66,11 @@ export default function FanJoinForm({
   }
 
   const blockAlignClass = align === "center" ? "mx-auto" : "";
+  const justifyClass = align === "center" ? "justify-center" : "justify-start";
 
   if (status === "done") {
     return (
-      <div className={`card p-6 text-left max-w-sm ${blockAlignClass}`}>
+      <div className={`card p-6 text-left w-full ${blockAlignClass}`}>
         <div className="font-semibold" style={{ color: accent }}>
           {authMode === "join" ? "You're on the list." : "Welcome back."}
         </div>
@@ -83,8 +85,44 @@ export default function FanJoinForm({
   }
 
   return (
-    <div className={`max-w-sm ${blockAlignClass} ${align === "center" ? "text-center" : "text-left"}`}>
-      <form onSubmit={submit} className="space-y-3 text-left">
+    <div className={`w-full ${blockAlignClass} text-left`}>
+      {/* Tab switcher */}
+      <div className={`flex ${justifyClass} mb-4`}>
+        <div className="inline-flex rounded-full border border-[var(--line)] p-1 bg-ink-2">
+          <button
+            type="button"
+            onClick={() => switchTo("join")}
+            className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+            style={
+              authMode === "join"
+                ? { background: accent, color: btnText }
+                : { background: "transparent", color: "var(--cream-dim)" }
+            }
+          >
+            Sign up
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTo("login")}
+            className="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+            style={
+              authMode === "login"
+                ? { background: accent, color: btnText }
+                : { background: "transparent", color: "var(--cream-dim)" }
+            }
+          >
+            Log in
+          </button>
+        </div>
+      </div>
+
+      <p className={`text-xs text-cream-dim mb-4 ${align === "center" ? "text-center" : "text-left"}`}>
+        {authMode === "join"
+          ? "New here? Create an account to unlock every partner offer."
+          : "Already registered? Enter your email and password to unlock your offers again."}
+      </p>
+
+      <form onSubmit={submit} className="space-y-3">
         {authMode === "join" && (
           <input
             required
@@ -127,9 +165,6 @@ export default function FanJoinForm({
         </button>
       </form>
       {status === "error" && error && <p className="text-coral text-sm mt-3">{error}</p>}
-      <button type="button" onClick={toggleAuthMode} className="text-xs text-cream-dim hover:text-cream mt-3 underline">
-        {authMode === "join" ? "Already registered? Log in with your email" : "New here? Register instead"}
-      </button>
     </div>
   );
 }

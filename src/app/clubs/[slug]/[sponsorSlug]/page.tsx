@@ -139,17 +139,18 @@ export default async function SponsorPage({
                       Claim this offer →
                     </a>
                   ) : (
-                    <span
-                      className="btn mt-8 opacity-60 cursor-not-allowed select-none"
+                    <a
+                      href="#fan-auth"
+                      className="btn mt-8"
                       style={{
                         background: "transparent",
-                        color: "var(--cream-dim)",
-                        border: "1px dashed var(--line)",
+                        color: accent,
+                        border: `1px dashed ${accent}`,
                         borderRadius: btnRadius,
                       }}
                     >
-                      🔒 Sign in to unlock
-                    </span>
+                      🔒 Login or Sign up to unlock
+                    </a>
                   )}
                 </div>
               ))}
@@ -162,9 +163,9 @@ export default async function SponsorPage({
         </div>
 
         {!unlocked && sponsor.offers.length > 0 && (
-          <div className="card p-8">
+          <div id="fan-auth" className="card p-8 scroll-mt-6">
             <div className="font-display font-bold text-xl sm:text-2xl">
-              Register with {club.clubName} to unlock this offer.
+              Login or sign up to unlock this offer.
             </div>
             <p className="text-cream-dim mt-2 text-sm">
               It takes a few seconds, and unlocks every current and future partner offer from{" "}
